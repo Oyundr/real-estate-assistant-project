@@ -1,33 +1,33 @@
 import faiss
 import numpy as np
 import json
+import os
 from sentence_transformers import SentenceTransformer
 
-# Модел ачаалах
-model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
+def build_vectorstore(target_group="Түрээсийн байр"):
+    model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
+    with open("analysis/grouped_listings.json", "r", encoding="utf-8") as f:
+        grouped = json.load(f)
 
-# JSON өгөгдөл унших
-with open("data/unegui_api_data.json", "r", encoding="utf-8") as f:
-    data = json.load(f)
+    if target_group not in grouped:
+        print(f"'{target_group}' бүлэг олдсонгүй!")
+        return
 
-# Embedding үүсгэх текстүүд бэлдэх (title + description)
-texts = [f"{item['title']} - {item['description']}" for item in data]
-embeddings = model.encode(texts)
+    data = grouped[target_group]
+    if not data:
+        print(f"'{target_group}' бүлэгт зар байхгүй!")
+        return
 
-# FAISS index үүсгэх
-dimension = embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)
-index.add(np.array(embeddings, dtype=np.float32))
+    texts = [f"{item.get('title', '')} - {item.get('description', '')}" for item in data]
+    embeddings = model.encode(texts)
 
-# Index хадгалах
-faiss.write_index(index, "vectorstore/real_estate.index")
+    dimension = embeddings.shape[1]
+    index = faiss.IndexFlatL2(dimension)
+    index.add(np.array(embeddings, dtype=np.float32))
 
-# Texts хадгалах
-with open("vectorstore/texts.json", "w", encoding="utf-8") as f:
-    json.dump(texts, f, ensure_ascii=False, indent=4)
+    os.makedirs("vectorstore", exist_ok=True)
+    faiss.write_index(index, "vectorstore/real_estate.index")
+    with open("vectorstore/texts.json", "w", encoding="utf-8") as f:
+        json.dump(texts, f, ensure_ascii=False, indent=4)
 
-# Original data хадгалах
-with open("vectorstore/original_data.json", "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=4)
-
-print(f"✅ Vectorstore үүсэж хадгалагдлаа: {len(data)} items.")
+    print(f"Vectorstore үүсгэж хадгаллаа: {len(data)} items from '{target_group}' бүлэг.")

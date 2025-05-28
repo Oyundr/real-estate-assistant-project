@@ -3,3 +3,6 @@ beautifulsoup4
 faiss-cpu
 sentence-transformers
 numpy
+fpdf2
+tk
+torch
